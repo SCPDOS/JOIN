@@ -1,4 +1,4 @@
-;Subst main routine
+;Join main routine
 startMain:
     jmp short .cVersion
 .vNum:  db 1
@@ -62,7 +62,7 @@ badParmExit:
     jmp badPrintExit
 endParse:
     test ecx, ecx
-    jz printSubst   ;If no arguments found, print the substs!
+    jz printJoin   ;If no arguments found, print the joins!
     cmp ecx, 1      
     je badPrmsExit  ;Cannot have just 1 argument on the cmdline
     mov eax, 3700h  ;Get switchchar in dl
@@ -84,10 +84,10 @@ endParse:
     jc badPrmsExit
     mov ecx, 2      ;Else, indicate var2 has the /D flag!
 .switchDone:
-    test ecx, ecx   ;If ecx is zero, then we are adding a subst.
-    jz addSubst
-;Else we are deleting a subst drive.
-delSubst:
+    test ecx, ecx   ;If ecx is zero, then we are creating a join.
+    jz addJoin
+;Else we are deleting a join drive.
+delJoin:
     mov rsi, qword [pVar1]
     mov rdi, qword [pVar2]
     cmp ecx, 1          ;If ecx = 1, rsi points to the /D
@@ -112,7 +112,7 @@ delSubst:
     int 21h
     cmp al, cl  ;If we are deleting the current drive, error exit!
     je badParmExit
-;Check if the subst drive we want to deactivate is a valid drive
+;Check if the join drive we want to deactivate is a valid drive
 ; in our system (i.e. does such a drive entry exist in the CDS array)
     call enterDOSCrit   ;Enter crit, Exit in the exit routine!
     mov rbx, qword [pSysvars]   
@@ -125,45 +125,28 @@ delSubst:
     mul ecx
     add ecx, "A"    ;Turn offset back into a UC drive letter!
     add rdi, rax    ;rdi now points to the right CDS
-;Check the cds we have chosen is really a subst drive
-    test word [rdi + cds.wFlags], cdsSubstDrive
-    jz .error      ;If this CDS is not a subst drive, error!
+;Check the cds we have chosen is really a join drive
+    test word [rdi + cds.wFlags], cdsJoinDrive
+    jz .error      ;If this CDS is not a join drive, error!
 ;Start editing the CDS back to it's default state
     mov byte [rdi], cl  ;Place the drive letter...
     mov word [rdi + 2], "\"   ;... and root backslash with null terminator!
     mov byte [rdi + cds.wBackslashOffset], 2    ;Go to root!
     mov dword [rdi + cds.dStartCluster], 0      ;Set start cluster for root!
-;Deactivate the subst but also the drive possibly temporarily!
-    and word [rdi + cds.wFlags], ~(cdsSubstDrive | cdsValidDrive)
-;Check for a physical DPB for this drive letter.
-;I.E if drive D selected, search for the fourth DPB.
-    sub ecx, "A"    ;Turn ecx back into a 0 based drive number
-;If the drive number is above the number of physical drives, we 
-; ignore the search as the physical drives always populate the 
-; first drives. Acts as a minor optimisation to avoid walking DPB linked list.
-    cmp cl, byte [rbx + sysVars.numPhysVol]
-    ja .exit    ;If drv num > physical drvs, we ignore this search!
-;Search the DPB linked list for the drive number associated to this drive!
-    mov rbp, qword [rbx + sysVars.dpbHeadPtr]
-.lp:
-    cmp byte [rbp + dpb.bDriveNumber], cl
-    je .dpbFnd  ;If DPB found for the drive in cl, 
-    mov rbp, qword [rbp + dpb.qNextDPBPtr]
-    cmp rbp, -1 ;We should never fall through but still better to be safe!
-    jne .lp
-.exit:
+;Deactivate the join!
+    and word [rdi + cds.wFlags], ~cdsJoinDrive 
+    mov rbx, qword [pSysvars]
+    cmp byte [rbx + sysVars.numJoinDrv], 0  ;Should never happen!
+    je exit
+    dec byte [rbx + sysVars.numJoinDrv]
     jmp exit
-.dpbFnd:
-    mov qword [rdi + cds.qDPBPtr], rbp  ;Set this DPB as the CDS DPB!
-    or word [rdi + cds.wFlags], cdsValidDrive   ;Reactivate this drive!
-    jmp short .exit
 .error:
 ;Invalid drive specified!
     call exitDOSCrit    ;Exit the critical section before exiting!!
     jmp badParmExit
     
-addSubst:
-;Here we add the subst path. We gotta check that path provided
+addJoin:
+;Here we add the join path. We gotta check that path provided
 ; exists! It is not null terminated so we gotta null terminate it.
 ; We also gotta get rid of any trailing slashes from the path provided!
 ;
@@ -189,13 +172,13 @@ addSubst:
     jnz badParmExit ;Cmdline valid but invalid data passed!
     mov rbp, rsi    ;Set rbp to point to the drive
 .gotDrvSpec:
-;Come here with rbp pointing to the new subst drive spec. 
+;Come here with rbp pointing to the new join drive spec. 
     movzx eax, byte [rbp]
     push rax
     mov eax, 1213h  ;UC the char in al
     int 2Fh
     sub al, "A"     ;Turn into a 0 based drive number
-    mov byte [destDrv], al
+    mov byte [joinDrv], al
     pop rax
 ;Make rsi point to the other argument!
     mov rsi, qword [pVar1]
@@ -215,9 +198,9 @@ addSubst:
 .notDefault:
     mov edx, eax    ;Save 1 based drive number in dl
     dec eax         ;Convert the drive number to 0 based
-    cmp al, byte [destDrv]  ;Check drive numbers are not equal 
+    cmp al, byte [joinDrv]  ;Check drive numbers are not equal 
     je badParmExit
-    mov byte [srcDrv], al   ;Save the drive letter in the var 
+    mov byte [mntDrv], al   ;Save the drive letter in the var 
     add al, "A"
     mov ah, ":"
     stosw   ;Store drive letter 
@@ -259,86 +242,110 @@ addSubst:
     int 2Fh
     cmp ecx, 67
     ja badParmExit
-;Now the CDS string is setup :) 
-;We now enter the critical section and 
-; check the CDS string is a path to a directory!
-    call enterDOSCrit   ;Now enter DOS critical section
-
+    mov byte [mntLen], cl
+;Now the CDS string is setup, check it is one path componant only.
+;Also verify that there are no wildcards present in path. If so, 
+; bad parameter error!
+.pathCheck:
+    xor ecx, ecx
+.pcLp:
+    lodsb
+    test al, al
+    jz .pcEnd
+    cmp al, "*"
+    je badParmExit
+    cmp al, "?"
+    je badParmExit
+    cmp al, "\"
+    jne .pcLp
+    inc ecx     ;Inc pathsep counter
+    jmp short .pcLp
+.pcEnd:
+    cmp ecx, 1  ;One pathsep allowed only!
+    jne badParmExit
     lea rdx, qword [inCDS + cds.sCurrentPath]
     mov eax, dword [rdx]
     shr eax, 8  ;Drop the drive letter
     cmp eax, ":\"
-    je .rtDir   ;Root dir specified (check that FF doesnt fail this case)
-    mov eax, 4E00h
-    mov ecx, 10h    ;Subdir flag
+    je badParmExit  ;Cannot join to root drive
+;We now enter the critical section and 
+; find the mount path
+    call enterDOSCrit   ;Now enter DOS critical section
+    mov eax, 4E00h  ;Find first on path pointed to by rdx
+    mov ecx, 10h    ;Find subdirs
     int 21h
     jnc .dirFnd
-    lea rdx, badPathStr ;Bad path passed for substing
+    mov eax, 3900h  ;MKDIR for the name pointed to by rdx
+    int 21h
+    jnc .dirMade
+.badMntpntExit:
+    lea rdx, badParmStr
     call exitDOSCrit
     jmp badPrintExit
 .dirFnd:
-    mov eax, 5D06h  ;Get SDA ptr in rsi
+;Check what we found is a subdir
+    cmp byte [r8 + 80h + ffBlock.attribFnd], 10h
+    jne .badMntpntExit
+.dirMade:
+;Now we check the mount point is empty
+    lea rdi, srchBuf
+    lea rsi, qword [inCDS + cds.sCurrentPath]
+    movzx ecx, byte [mntLen]
+    rep movsb   ;Copy it over
+    dec rdi
+    mov al, "\"
+    stosb
+    mov eax, "*.*"
+    stosd
+    
+    lea rdx, srchBuf
+    mov eax, 4E00h
+    mov ecx, 16h    ;Inclusive directory search (find ., always exists)
     int 21h
-    movzx edx, word [rsi + sda.curDirCopy + fatDirEntry.fstClusLo]
-    movzx eax, word [rsi + sda.curDirCopy + fatDirEntry.fstClusHi]
-    shl eax, 10h
-    or eax, edx ;Add low bits to eax
-    mov dword [inCDS + cds.dStartCluster], eax  ;Replace with real start clust
-.rtDir:
-;The path provided is a valid directory. Start cluster in CDS (0 if root dir)
-;Now check the selected destination CDS is valid!
+    mov eax, 4F00h  ;Find .., always exists
+    int 21h
+    mov eax, 4F00h  ;Try find a third file
+    int 21h
+    jc .emptyDir    ;If no file found, proceed happily
+    call exitDOSCrit
+    lea rdx, badDirStr  ;Else, directory not empty!
+    jmp badPrintExit
+.emptyDir:
+;Check the join drive is not past lastdrv
     mov rbx, qword [pSysvars]
-    movzx ecx, byte [destDrv]
+    movzx ecx, byte [joinDrv]
     cmp byte [rbx + sysVars.lastdrvNum], cl
     ja .destNumOk ;Has to be above zero as cl is 0 based :)
-    ;ERROR: DRIVE PAST THE LAST DRIVE VALUE!
-.inDOSBadExit:
+.badNumExit:
     call exitDOSCrit
     jmp badParmExit
 .destNumOk:
-    call .getCds    ;Get the CDS ptr for the destination in rdi
-    ;test word [rdi + cds.wFlags], cdsValidDrive
-    ;DO NOT CHECK VALIDITY AS WE CAN OVERWRITE A VALID LOCAL DRV
-    ;jnz .inDOSBadExit
-    test word [rdi + cds.wFlags], cdsSubstDrive | cdsJoinDrive | cdsRedirDrive
-    jz .destNotNet   
-;ERROR: SPECIFIED CDS ENTRY ALREADY IN USE FOR REDIR!
+    movzx ecx, byte [mntDrv]    
+    cmp byte [rbx + sysVars.lastdrvNum], cl
+    jbe .badNumExit
+    ;Check the mount drive is not a redir etc.
+    call .getCds    ;Get mount drive cds in rdi
+    test word [rdi + cds.wFlags], cdsJoinDrive | cdsSubstDrive | cdsRedirDrive
+    jz .mntOk
 .inDOSBadNetExit:
     lea rdx, badNetStr
     call exitDOSCrit
     jmp badPrintExit
-.destNotNet:
-;Now we build the subst CDS.
-    mov rbp, rdi    ;Save the destination cds pointer in rbp
-    movzx ecx, byte [srcDrv]    
-    call .getCds    ;Get source cds in rdi
-    test word [rdi + cds.wFlags], cdsSubstDrive | cdsJoinDrive | cdsRedirDrive
-    jnz .inDOSBadNetExit
-    mov word [inCDS + cds.wFlags], cdsValidDrive | cdsSubstDrive
-    mov rsi, qword [rdi + cds.qDPBPtr]
-    mov qword [inCDS + cds.qDPBPtr], rsi
-    mov rsi, qword [rdi + cds.qIFSPtr]
-    mov qword [inCDS + cds.qIFSPtr], rsi
-    mov esi, dword [rdi + cds.dNetStore]
-    mov dword [rdi + cds.dNetStore], esi
-;Now compute the wBackslash offset
-    lea rsi, inCDS
-    mov eax, 1225h  ;Get strlen of str pointed to by rsi in ecx
-    int 2fh
-    dec ecx         ;Drop the terminating null from count
-    add rsi, rcx    ;Go to last char
-    cmp byte [rsi], "\"
-    jne .notTrailing    ;No trailing slash, skip overwrite.
-    dec ecx
-    cmp ecx, 2          ;If C:\, dont overwrite the slash
-    je .notTrailing
-    mov byte [rsi], 0   ;Else overwrite null over the trailing slash
-.notTrailing:
-    mov word [inCDS + cds.wBackslashOffset], cx
-    mov rdi, rbp
-    lea rsi, inCDS
-    mov ecx, cds_size
-    rep movsb   ;Copy over the new CDS and exit!
+.mntOk:
+    ;Now we check the join drive too.
+    movzx ecx, byte [joinDrv]
+    call .getCds    ;Get the CDS ptr for the destination in rdi
+    test word [rdi + cds.wFlags], cdsJoinDrive | cdsSubstDrive | cdsRedirDrive
+    jnz .inDOSBadNetExit   
+    ;Now we modify the join drive
+    or word [rdi + cds.wFlags], cdsJoinDrive
+    lea rsi, qword [inCDS + cds.sCurrentPath]
+    movzx ecx, byte [mntLen]
+    rep movsb
+;This should never happen, should throw error instead
+    cmp byte [rbx + sysVars.numJoinDrv], 0FFh   
+    je exit
+    inc byte [rbx + sysVars.numJoinDrv]
     jmp exit
 .getCds:
 ;Input: ecx = [byte] 0-based drive number
@@ -351,24 +358,25 @@ addSubst:
     return
 
 
-printSubst:
+printJoin:
     call enterDOSCrit   ;Ensure the CDS size and ptr doesnt change
     mov rbx, qword [pSysvars]
     mov rdi, qword [rbx + sysVars.cdsHeadPtr]
     movzx ecx, byte [rbx + sysVars.lastdrvNum]  ;Get # of CDS's
     mov ebx, "A"    
 .lp:
-    test word [rdi + cds.wFlags], cdsSubstDrive
+    test word [rdi + cds.wFlags], cdsJoinDrive
     jz .gotoNextCDS
 ;Print the CDS drive letter and the rocket
-    lea rdx, substStr
-    mov byte [rdx], bl  ;Overwrite the drive letter in substStr
-    mov eax, 0900h      ;Print the substStr
+    lea rdx, rocketStr
+    mov byte [rdx], bl  ;Overwrite the drive letter in rocketStr
+    mov eax, 0900h      ;Print the rocketStr
     int 21h
 ;Print the current path of the cds upto the backslash offset
     push rbx
-    movzx ecx, word [rdi + cds.wBackslashOffset]
     lea rdx, qword [rdi + cds.sCurrentPath]
+    mov eax, 1212h  ;Strlen (rdi points to the current path)
+    int 2fh
     mov ebx, 1          ;Print to STDOUT
     mov eax, 4000h
     int 21h
