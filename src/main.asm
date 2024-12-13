@@ -374,12 +374,14 @@ printJoin:
     int 21h
 ;Print the current path of the cds upto the backslash offset
     push rbx
+    push rcx
     lea rdx, qword [rdi + cds.sCurrentPath]
     mov eax, 1212h  ;Strlen (rdi points to the current path)
     int 2fh
     mov ebx, 1          ;Print to STDOUT
     mov eax, 4000h
     int 21h
+    pop rcx
     pop rbx
 ;Print a CRLF
     lea rdx, crlf
