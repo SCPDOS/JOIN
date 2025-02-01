@@ -11,15 +11,15 @@ Output file:  ./bin/JOIN.COM
 -- Sections (summary) ---------------------------------------------------------
 
 Vstart            Start             Stop              Length    Class     Name
-               0                 0               5AE  000005AE  progbits  .text
-             5B0               5B0               7DB  0000022B  nobits    transient
+               0                 0               5BE  000005BE  progbits  .text
+             5C0               5C0               7EB  0000022B  nobits    transient
 
 -- Sections (detailed) --------------------------------------------------------
 
 ---- Section .text ------------------------------------------------------------
 
 class:     progbits
-length:                 5AE
+length:                 5BE
 start:                    0
 align:     not defined
 follows:   not defined
@@ -31,10 +31,10 @@ vfollows:  not defined
 
 class:     nobits
 length:                 22B
-start:                  5B0
+start:                  5C0
 align:                    8
 follows:   not defined
-vstart:                 5B0
+vstart:                 5C0
 valign:                   8
 vfollows:  .text
 
@@ -521,80 +521,83 @@ Real              Virtual           Name
                2                 2  startMain.vNum
                3                 3  startMain.cVersion
               21                21  badPrintExit
-              2F                2F  okVersion
-              67                67  parseCmdLine
-              A2                A2  badPrmsExit
-              AE                AE  badParmExit
-              BA                BA  endParse
-              E7                E7  endParse.g2
-             102               102  endParse.switchDone
-             10A               10A  delJoin
-             1BD               1BD  delJoin.error
-             1C7               1C7  addJoin
-             213               213  addJoin.gotDrvSpec
-             25E               25E  addJoin.notDefault
-             2AB               2AB  addJoin.pathSepFnd
-             2AC               2AC  addJoin.cplp
-             2DC               2DC  addJoin.pathCheck
-             2DE               2DE  addJoin.pcLp
-             2FB               2FB  addJoin.pcEnd
-             33A               33A  addJoin.badMntpntExit
-             34B               34B  addJoin.dirFnd
-             355               355  addJoin.dirMade
-             3AC               3AC  addJoin.emptyDir
-             3BF               3BF  addJoin.badNumExit
-             3C9               3C9  addJoin.destNumOk
-             3E2               3E2  addJoin.inDOSBadNetExit
-             3F3               3F3  addJoin.mntOk
-             42F               42F  addJoin.getCds
-             43D               43D  ..@55._ret
-             43E               43E  printJoin
-             457               457  printJoin.lp
-             497               497  printJoin.gotoNextCDS
-             4A4               4A4  exit
-             4B0               4B0  checkSwitchOk
-             4C5               4C5  ..@57._base
-             4C7               4C7  ..@58._ret
-             4C8               4C8  ..@57.a
-             4CD               4CD  ..@60._base
-             4CF               4CF  checkSwitchOk.bad
-             4D0               4D0  ..@61._ret
-             4D1               4D1  enterDOSCrit
-             4DA               4DA  ..@62._ret
-             4DB               4DB  exitDOSCrit
-             4E4               4E4  ..@63._ret
-             4E5               4E5  skipDelims
-             4F0               4F0  ..@64._ret
-             4F1               4F1  findDelimOrCR
-             4FC               4FC  ..@65._ret
-             4FD               4FD  isALDelimOrCR
-             4FF               4FF  ..@67._base
-             501               501  isALDelim
-             503               503  ..@69._base
-             507               507  ..@71._base
-             50B               50B  ..@73._base
-             50F               50F  ..@75._base
-             513               513  ..@76._ret
-             514               514  badNetStr
-             533               533  badVerStr
-             548               548  crlf
-             54B               54B  badPrmsStr
-             56C               56C  badParmStr
-             580               580  badPathStr
-             591               591  badDirStr
-             5A7               5A7  rocketStr
+              2F                2F  testMplx
+              38                38  ..@56._base
+              3A                3A  ..@57._ret
+              3B                3B  ..@56.a
+              44                44  ..@58._ret
+              45                45  okVersion
+              55                55  clearBss
+              8D                8D  parseCmdLine
+              C8                C8  badPrmsExit
+              D4                D4  badParmExit
+              E0                E0  endParse
+             10D               10D  endParse.g2
+             128               128  endParse.switchDone
+             130               130  delJoin
+             1DE               1DE  delJoin.error
+             1E3               1E3  addJoin
+             22F               22F  addJoin.gotDrvSpec
+             27A               27A  addJoin.notDefault
+             2C7               2C7  addJoin.pathSepFnd
+             2C8               2C8  addJoin.cplp
+             2F8               2F8  addJoin.pathCheck
+             2FA               2FA  addJoin.pcLp
+             317               317  addJoin.pcEnd
+             351               351  addJoin.badMntpntExit
+             35D               35D  addJoin.dirFnd
+             367               367  addJoin.dirMade
+             3B9               3B9  addJoin.emptyDir
+             3CC               3CC  addJoin.badNumExit
+             3D1               3D1  addJoin.destNumOk
+             3EA               3EA  addJoin.inDOSBadNetExit
+             3F6               3F6  addJoin.mntOk
+             42E               42E  addJoin.getCds
+             43C               43C  ..@59._ret
+             43D               43D  printJoin
+             451               451  printJoin.lp
+             491               491  printJoin.gotoNextCDS
+             49E               49E  exit
+             4A5               4A5  checkSwitchOk
+             4BA               4BA  ..@61._base
+             4C1               4C1  ..@63._base
+             4C3               4C3  ..@64._ret
+             4C4               4C4  ..@63.a
+             4C4               4C4  checkSwitchOk.bad
+             4C5               4C5  ..@65._ret
+             4C6               4C6  skipDelims
+             4D1               4D1  ..@66._ret
+             4D2               4D2  findDelimOrCR
+             4DD               4DD  ..@67._ret
+             4DE               4DE  isALDelimOrCR
+             4E0               4E0  ..@69._base
+             4E2               4E2  isALDelim
+             4E4               4E4  ..@71._base
+             4E8               4E8  ..@73._base
+             4EC               4EC  ..@75._base
+             4F0               4F0  ..@77._base
+             4F4               4F4  ..@78._ret
+             4F5               4F5  badNetStr
+             513               513  badVerStr
+             528               528  crlf
+             52B               52B  badPrmsStr
+             54C               54C  badParmStr
+             560               560  badPathStr
+             571               571  badDirStr
+             587               587  rocketStr
+             58E               58E  badMultStr
 
 ---- Section transient --------------------------------------------------------
 
 Real              Virtual           Name
-             5B0               5B0  bssStart
-             5B0               5B0  pSysvars
-             5B8               5B8  pVar1
-             5C0               5C0  pVar2
-             5C8               5C8  mntDrv
-             5C9               5C9  joinDrv
-             5CA               5CA  inCDS
-             64A               64A  srchBuf
-             672               672  mntLen
-             7DB               7DB  endOfAlloc
+             5C0               5C0  bssStart
+             5C0               5C0  pSysvars
+             5C8               5C8  pVar1
+             5D0               5D0  pVar2
+             5D8               5D8  mntDrv
+             5D9               5D9  joinDrv
+             5DA               5DA  inCDS
+             65A               65A  srchBuf
+             682               682  mntLen
+             7EB               7EB  endOfAlloc
 

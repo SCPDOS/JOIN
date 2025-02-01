@@ -16,7 +16,27 @@ badPrintExit:
     int 21h
     mov eax, 4CFFh
     int 21h
+testMplx:
+;Tests if either sesman or multi are installed.
+;Output: ZF=NZ: Either installed.
+;        ZF=ZY: Neither installed, proceed!
+    mov eax, 0900h
+    int 2Fh
+    test al, -1
+    retnz
+    mov eax, 0A00h
+    int 2Fh
+    test al, -1
+    return
 okVersion:
+;In later versions of JOIN, we use the CDS ptr of the parent
+; process. For now, we just exit error if we enter with either
+; sesman or multi installed.
+    call testMplx
+    jz clearBss
+    lea rdx, badMultStr
+    jmp short badPrintExit
+clearBss:
 ;Now we init the BSS to 0.
     lea rdi, bssStart
     xor eax, eax
@@ -114,7 +134,7 @@ delJoin:
     je badParmExit
 ;Check if the join drive we want to deactivate is a valid drive
 ; in our system (i.e. does such a drive entry exist in the CDS array)
-    call enterDOSCrit   ;Enter crit, Exit in the exit routine!
+    ;call enterDOSCrit   ;Enter crit, Exit in the exit routine!
     mov rbx, qword [pSysvars]   
 ;If drive specified to remove is past end of CDS array, error!
     cmp byte [rbx + sysVars.lastdrvNum], cl
@@ -142,7 +162,7 @@ delJoin:
     jmp exit
 .error:
 ;Invalid drive specified!
-    call exitDOSCrit    ;Exit the critical section before exiting!!
+    ;call exitDOSCrit    ;Exit the critical section before exiting!!
     jmp badParmExit
     
 addJoin:
@@ -270,7 +290,7 @@ addJoin:
     je badParmExit  ;Cannot join to root drive
 ;We now enter the critical section and 
 ; find the mount path
-    call enterDOSCrit   ;Now enter DOS critical section
+    ;call enterDOSCrit   ;Now enter DOS critical section
     mov eax, 4E00h  ;Find first on path pointed to by rdx
     mov ecx, 10h    ;Find subdirs
     int 21h
@@ -280,7 +300,7 @@ addJoin:
     jnc .dirMade
 .badMntpntExit:
     lea rdx, badParmStr
-    call exitDOSCrit
+    ;call exitDOSCrit
     jmp badPrintExit
 .dirFnd:
 ;Check what we found is a subdir
@@ -307,7 +327,7 @@ addJoin:
     mov eax, 4F00h  ;Try find a third file
     int 21h
     jc .emptyDir    ;If no file found, proceed happily
-    call exitDOSCrit
+    ;call exitDOSCrit
     lea rdx, badDirStr  ;Else, directory not empty!
     jmp badPrintExit
 .emptyDir:
@@ -317,7 +337,7 @@ addJoin:
     cmp byte [rbx + sysVars.lastdrvNum], cl
     ja .destNumOk ;Has to be above zero as cl is 0 based :)
 .badNumExit:
-    call exitDOSCrit
+    ;call exitDOSCrit
     jmp badParmExit
 .destNumOk:
     movzx ecx, byte [mntDrv]    
@@ -329,7 +349,7 @@ addJoin:
     jz .mntOk
 .inDOSBadNetExit:
     lea rdx, badNetStr
-    call exitDOSCrit
+    ;call exitDOSCrit
     jmp badPrintExit
 .mntOk:
     ;Now we check the join drive too.
@@ -359,7 +379,7 @@ addJoin:
 
 
 printJoin:
-    call enterDOSCrit   ;Ensure the CDS size and ptr doesnt change
+    ;call enterDOSCrit   ;Ensure the CDS size and ptr doesnt change
     mov rbx, qword [pSysvars]
     mov rdi, qword [rbx + sysVars.cdsHeadPtr]
     movzx ecx, byte [rbx + sysVars.lastdrvNum]  ;Get # of CDS's
@@ -393,7 +413,7 @@ printJoin:
     dec ecx
     jnz .lp
 exit:
-    call exitDOSCrit
+    ;call exitDOSCrit
     mov eax, 4C00h
     int 21h
 
@@ -422,19 +442,19 @@ checkSwitchOk:
     stc
     return
 
-enterDOSCrit:
-    push rax
-    mov eax, 8001h
-    int 2Ah
-    pop rax
-    return 
+;enterDOSCrit:
+;    push rax
+;    mov eax, 8001h
+;    int 2Ah
+;    pop rax
+;    return 
 
-exitDOSCrit:
-    push rax
-    mov eax, 8101h
-    int 2Ah
-    pop rax
-    return 
+;exitDOSCrit:
+;    push rax
+;    mov eax, 8101h
+;    int 2Ah
+;    pop rax
+;    return 
 
 skipDelims:
 ;Points rsi to the first non-delimiter char in a string, loads al with value
